@@ -1,106 +1,110 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Serve frontend (public folder)
 app.use(express.static("public"));
 
-const waitingUsers = {};
+let allUsers = {}; // socket.id => { name, status }
+let waitingQueue = []; // Users waiting for a stranger
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+    console.log("User connected:", socket.id);
 
-  socket.mood = null;
+    socket.username = "Anonymous";
+    allUsers[socket.id] = { name: socket.username, status: "online" };
+    io.emit("userList", allUsers);
 
-  // Set mood and try to match
-  socket.on("set-mood", (mood) => {
-    socket.mood = mood;
-    matchUser(socket);
-  });
+    // Set name
+    socket.on("setName", (name) => {
+        socket.username = name;
+        allUsers[socket.id].name = name;
+        io.emit("userList", allUsers);
+        findStranger(socket);
+    });
 
-  // Find new stranger with mood
-  socket.on("new-stranger", (mood) => {
-    leaveAllRooms(socket);
-    socket.mood = mood;
-    matchUser(socket);
-  });
+    // Find new stranger
+    socket.on("findStranger", () => {
+        leaveRoom(socket);
+        findStranger(socket);
+    });
 
-  // Receive messages
-  socket.on("message", (msg) => {
-    const rooms = [...socket.rooms].filter(r => r !== socket.id);
-    rooms.forEach(room => io.to(room).emit("message", msg));
-  });
+    // Chat messages
+    socket.on("message", (msg) => {
+        if (!socket.partner) {
+            socket.emit("systemMessage", "❌ No stranger connected. Can't send message.");
+            return;
+        }
+        const room = [...socket.rooms].find(r => r.includes("#"));
+        if (room) {
+            socket.to(room).emit("message", { from: socket.username, text: msg });
+        }
+    });
 
-  // Find new stranger
-  socket.on("new-stranger", () => {
-    if (waitingUser === socket) waitingUser = null;
+    // Disconnect
+    socket.on("disconnect", () => {
+        console.log("User disconnected:", socket.id);
+        if (socket.partner) {
+            const partnerSocket = io.sockets.sockets.get(socket.partner);
+            if (partnerSocket) {
+                partnerSocket.emit("partnerDisconnected");
+                partnerSocket.partner = null;
+                allUsers[partnerSocket.id].status = "online";
+            }
+        }
+        removeFromQueue(socket);
+        delete allUsers[socket.id];
+        io.emit("userList", allUsers);
+    });
 
-    // Leave all current rooms
-    const rooms = [...socket.rooms].filter(r => r !== socket.id);
-    rooms.forEach(room => socket.leave(room));
-function matchUser(socket) {
-  if (!socket.mood) {
-    socket.emit("chat wait", "⏳ Please select a mood to start.");
-    return;
-  }
-  if (!waitingUsers[socket.mood]) waitingUsers[socket.mood] = [];
-  // Try to find a waiting user with the same mood
-  const queue = waitingUsers[socket.mood];
-  while (queue.length > 0) {
-    const partner = queue.shift();
-    if (partner.connected) {
-      const room = socket.id + "#" + partner.id;
-      socket.join(room);
-      partner.join(room);
-      io.to(room).emit("chat start", `✅ You are now connected to a stranger! (Mood: ${socket.mood})`);
-      return;
+    // Helper functions
+    function findStranger(s) {
+        removeFromQueue(s);
+
+        const waiting = waitingQueue.find(u => u.id !== s.id && !u.partner);
+        if (waiting) {
+            const room = s.id + "#" + waiting.id;
+            s.join(room);
+            waiting.join(room);
+            s.partner = waiting.id;
+            waiting.partner = s.id;
+
+            s.emit("strangerFound", waiting.username);
+            waiting.emit("strangerFound", s.username);
+
+            allUsers[s.id].status = "chatting";
+            allUsers[waiting.id].status = "chatting";
+            io.emit("userList", allUsers);
+        } else {
+            waitingQueue.push(s);
+            s.emit("waiting");
+            allUsers[s.id].status = "waiting";
+            io.emit("userList", allUsers);
+        }
     }
-  }
-  // No partner found, add to waiting queue
-  queue.push(socket);
-  socket.emit("chat wait", `⏳ Waiting for a stranger with mood: ${socket.mood} ...`);
-}
 
-function leaveAllRooms(socket) {
-  const rooms = [...socket.rooms].filter(r => r !== socket.id);
-  rooms.forEach(room => socket.leave(room));
-  removeWaitingUser(socket);
-}
-
-function removeWaitingUser(socket) {
-  if (socket.mood && waitingUsers[socket.mood]) {
-    waitingUsers[socket.mood] = waitingUsers[socket.mood].filter(s => s.id !== socket.id);
-  }
-}
-
-    // Match with a waiting user or wait
-    if (waitingUser) {
-      const room = socket.id + "#" + waitingUser.id;
-      socket.join(room);
-      waitingUser.join(room);
-      io.to(room).emit("chat start", "✅ You are now connected to a stranger!");
-      waitingUser = null;
-    } else {
-      waitingUser = socket;
-      socket.emit("chat wait", "⏳ Waiting for a stranger...");
+    function leaveRoom(s) {
+        const rooms = [...s.rooms].filter(r => r !== s.id);
+        rooms.forEach(r => s.leave(r));
+        if (s.partner) {
+            const partnerSocket = io.sockets.sockets.get(s.partner);
+            if (partnerSocket) {
+                partnerSocket.emit("partnerDisconnected");
+                partnerSocket.partner = null;
+                allUsers[partnerSocket.id].status = "online";
+            }
+            s.partner = null;
+        }
     }
-  });
 
-  // Disconnect
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    if (waitingUser === socket) waitingUser = null;
-    socket.broadcast.emit("message", "❌ Stranger disconnected.");
-  });
+    function removeFromQueue(s) {
+        waitingQueue = waitingQueue.filter(u => u.id !== s.id);
+    }
 });
 
-// Start server
 server.listen(3000, () => {
-  console.log("🚀 Server running on http://localhost:3000");
+    console.log("🚀 Server running on http://localhost:3000");
 });
-// This file is required for Socket.IO client to work in the browser.

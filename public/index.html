@@ -1,469 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stranger Chat</title>
-  <style>
-    :root {
-      --primary-bg: #f7f8fa;
-      --sidebar-bg: #fff;
-      --chat-bg: #fff;
-      --bubble-me: #e9e3ff;
-      --bubble-stranger: #f1f3f6;
-      --bubble-system: #ffe0b2;
-      --input-bg: #f7f8fa;
-      --input-color: #222;
-      --button-bg: #f5f6fa;
-      --button-hover: #e0e1e7;
-      --button-radius: 16px;
-      --sidebar-width: 320px;
-      --shadow: 0 4px 32px rgba(0,0,0,0.07);
-    }
-    body {
-      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
-      min-width: 100vw;
-      width: 100vw;
-      height: 100vh;
-      background: var(--primary-bg);
-      color: #222;
-      overflow: hidden;
-      display: flex;
-    }
-    .sidebar {
-      width: var(--sidebar-width);
-      background: var(--sidebar-bg);
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      padding: 0 0 0 0;
-      border-right: 1.5px solid #f0f0f0;
-      min-height: 100vh;
-      z-index: 2;
-      box-shadow: var(--shadow);
-      border-radius: 24px 0 0 24px;
-    }
-    .sidebar-header {
-      padding: 32px 24px 18px 24px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .sidebar-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 0 12px 0 12px;
-      margin-top: 12px;
-    }
-    .sidebar-user {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .sidebar-user-avatar {
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: #f5f6fa;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.1rem;
-      font-weight: bold;
-      color: #888;
-      border: 1.5px solid #e0e1e7;
-    }
-    .chat-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: var(--chat-bg);
-      min-height: 100vh;
-      max-width: 100vw;
-      max-height: 100vh;
-      z-index: 1;
-      border-radius: 0 24px 24px 0;
-      box-shadow: var(--shadow);
-    }
-    .header {
-      background: transparent;
-      padding: 32px 0 18px 0;
-      text-align: left;
-      font-size: 2.2rem;
-      font-weight: bold;
-      letter-spacing: 2px;
-      box-shadow: none;
-      margin-left: 32px;
-      color: #222;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    .messages {
-      flex: 1;
-      padding: 32px 8vw 32px 8vw;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      background: transparent;
-      min-height: 0;
-    }
-    .message {
-      padding: 16px 28px;
-      border-radius: 16px;
-      max-width: 60vw;
-      word-wrap: break-word;
-      font-size: 1.1rem;
-      box-shadow: var(--shadow);
-      display: flex;
-      align-items: flex-end;
-      gap: 10px;
-      position: relative;
-      background: var(--bubble-stranger);
-      color: #222;
-    }
-    .me {
-      background: var(--bubble-me);
-      align-self: flex-end;
-      color: #222;
-      border-radius: 16px;
-    }
-    .stranger {
-      background: var(--bubble-stranger);
-      align-self: flex-start;
-      color: #222;
-      border-radius: 16px;
-    }
-    .system {
-      background: var(--bubble-system);
-      align-self: center;
-      font-size: 1rem;
-      color: #222;
-      opacity: 1;
-      padding: 8px 18px;
-      border-radius: 12px;
-      box-shadow: var(--shadow);
-    }
-    .input-area {
-      display: flex;
-      padding: 24px 8vw 24px 8vw;
-      background: var(--input-bg);
-      gap: 16px;
-      border-top: 1.5px solid #f0f0f0;
-      align-items: center;
-      border-radius: 0 0 24px 0;
-    }
-    input {
-      flex: 1;
-      padding: 16px 18px;
-      border: none;
-      border-radius: 12px;
-      outline: none;
-      font-size: 1.1rem;
-      background: #fff;
-      color: #222;
-      box-shadow: var(--shadow);
-      border: 1.5px solid #e0e1e7;
-    }
-    .btn {
-      padding: 14px 28px;
-      border: none;
-      border-radius: var(--button-radius);
-      background: var(--button-bg);
-      color: #222;
-      font-weight: 500;
-      cursor: pointer;
-      font-size: 1.1rem;
-      box-shadow: var(--shadow);
-      transition: 0.2s;
-      margin-left: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .btn:hover {
-      background: var(--button-hover);
-      transform: translateY(-2px) scale(1.04);
-    }
-    .btn-icon {
-      width: 22px;
-      height: 22px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-    }
-    .name-setup {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255,255,255,0.96);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 10;
-    }
-    .name-box {
-      background: #fff;
-      color: #222;
-      padding: 40px 32px 32px 32px;
-      border-radius: 22px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-    .name-box input {
-      margin-top: 18px;
-      padding: 14px;
-      width: 85%;
-      border-radius: 12px;
-      border: 1.5px solid #e0e1e7;
-      font-size: 1.1rem;
-      background: #fff;
-      color: #222;
-    }
-    @media (max-width: 900px) {
-      .messages, .input-area {
-        padding-left: 2vw;
-        padding-right: 2vw;
-      }
-      .sidebar {
-        width: 80px;
-        min-width: 80px;
-      }
-    }
-    @media (max-width: 600px) {
-      .chat-container {
-        padding: 0;
-      }
-      .messages, .input-area {
-        padding-left: 1vw;
-        padding-right: 1vw;
-      }
-      .name-box {
-        padding: 24px 8px 18px 8px;
-      }
-      .sidebar {
-        display: none;
-      }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stranger Chat</title>
+<style>
+body { font-family: Arial; margin:0; display:flex; height:100vh; }
+.sidebar { width:280px; background:#f9f9f9; padding:12px; border-right:1px solid #eee; overflow-y:auto; }
+.chat-container { flex:1; display:flex; flex-direction:column; }
+.header { padding:12px; font-size:1.5rem; font-weight:bold; }
+.messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.message { padding:12px; border-radius:10px; max-width:70%; word-break:break-word; }
+.me { align-self:flex-end; background:#e0dfff; }
+.stranger { align-self:flex-start; background:#f1f1f1; }
+.system { align-self:center; background:#ffe0b2; font-size:0.9rem; }
+.input-area { display:flex; padding:12px; gap:8px; }
+input { flex:1; padding:10px; border-radius:8px; border:1px solid #ccc; }
+button { padding:10px 18px; border-radius:8px; border:none; background:#ddd; cursor:pointer; }
+button:disabled { background:#aaa; cursor:not-allowed; }
+</style>
 </head>
 <body>
 
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <span class="sidebar-user-avatar" id="sidebarAvatar">👤</span>
-      <span id="sidebarName">Stranger</span>
-      <button id="editNameBtn" class="btn" style="margin-left:auto;padding:6px 10px;min-width:unset;" title="Edit Name">
-        <span class="btn-icon">✏️</span>
-      </button>
-    </div>
-    <div class="sidebar-list">
-      <div style="margin: 18px 0 10px 0; font-weight: 500;">Mood</div>
-      <div id="moodSelector" style="display: flex; flex-direction: column; gap: 10px;">
-        <button class="btn mood-btn" data-mood="talky">🗣️ Talky</button>
-        <button class="btn mood-btn" data-mood="sad">� Sad</button>
-        <button class="btn mood-btn" data-mood="horney">🔥 Horney</button>
-        <button class="btn mood-btn" data-mood="friendship">🤝 Friendship</button>
-        <button class="btn mood-btn" data-mood="gf">💖 GF</button>
-        <button class="btn mood-btn" data-mood="other">✨ Other</button>
-      </div>
-      <div style="margin: 24px 0 10px 0; font-weight: 500;">Theme</div>
-      <button class="btn" id="toggleThemeBtn">🌙 Toggle Light/Dark</button>
-    </div>
-  </div>
-  <div class="chat-container">
-    <div class="header">
-      <span>💬 Chat Room</span>
-    </div>
-    <div class="messages" id="messages"></div>
-    <div class="input-area">
-      <input type="text" id="messageInput" placeholder="Type your message..." />
-      <button class="btn" onclick="sendMessage()">
-        <span class="btn-icon">&#9658;</span> Send
-      </button>
-      <button class="btn" onclick="findNewStranger()">
-        <span class="btn-icon">&#8635;</span> New
-      </button>
-    </div>
-  </div>
+<div class="sidebar">
+<h3>👥 Online Users</h3>
+<ul id="userList"></ul>
+</div>
 
-  <!-- Name Setup Modal -->
-  <div class="name-setup" id="nameSetup">
-    <div class="name-box">
-      <h2>Enter Your Name</h2>
-      <input type="text" id="nameInput" placeholder="Your name..." />
-      <br><br>
-      <button onclick="setName()">Start Chat</button>
-    </div>
-  </div>
+<div class="chat-container">
+<div class="header">💬 Stranger Chat</div>
+<div id="messages" class="messages"></div>
+<div class="input-area">
+  <input type="text" id="messageInput" placeholder="Type a message..." disabled />
+  <button onclick="sendMessage()" disabled>Send</button>
+  <button onclick="findNewStranger()">New</button>
+</div>
+</div>
 
-  <script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+const socket = io();
+const messagesDiv = document.getElementById("messages");
+const userList = document.getElementById("userList");
+let isConnected = false;
 
-    // Load Socket.IO client from CDN
-    const script = document.createElement('script');
-    script.src = "https://cdn.socket.io/4.7.5/socket.io.min.js";
-    script.onload = () => {
-      const socket = io("http://localhost:3001");
-      const messagesDiv = document.getElementById("messages");
-      let userName = localStorage.getItem("userName") || "Stranger";
-      let userMood = localStorage.getItem("userMood") || null;
-      let darkMode = localStorage.getItem("darkMode") === "true";
+let userName = localStorage.getItem("userName");
+if (!userName) {
+    userName = prompt("Enter your name:") || "Anonymous";
+    localStorage.setItem("userName", userName);
+}
+socket.emit("setName", userName);
 
-      // UI helpers
-      function updateSidebarName() {
-        document.getElementById("sidebarName").innerText = userName;
-      }
-      function updateSidebarAvatar() {
-        document.getElementById("sidebarAvatar").innerText = userName ? userName[0].toUpperCase() : "👤";
-      }
-      function updateMoodButtons() {
-        document.querySelectorAll('.mood-btn').forEach(btn => {
-          if (btn.dataset.mood === userMood) {
-            btn.style.background = '#d1c4e9';
-            btn.style.fontWeight = 'bold';
-          } else {
-            btn.style.background = '';
-            btn.style.fontWeight = '';
-          }
-        });
-      }
-      function setTheme(dark) {
-        if (dark) {
-          document.documentElement.style.setProperty('--primary-bg', '#18192a');
-          document.documentElement.style.setProperty('--sidebar-bg', '#23243a');
-          document.documentElement.style.setProperty('--chat-bg', '#23243a');
-          document.documentElement.style.setProperty('--bubble-me', '#2d2b55');
-          document.documentElement.style.setProperty('--bubble-stranger', '#23243a');
-          document.documentElement.style.setProperty('--bubble-system', '#ff9800');
-          document.documentElement.style.setProperty('--input-bg', '#23243a');
-          document.documentElement.style.setProperty('--input-color', '#fff');
-          document.documentElement.style.setProperty('--button-bg', '#23243a');
-          document.documentElement.style.setProperty('--button-hover', '#18192a');
-        } else {
-          document.documentElement.style.setProperty('--primary-bg', '#f7f8fa');
-          document.documentElement.style.setProperty('--sidebar-bg', '#fff');
-          document.documentElement.style.setProperty('--chat-bg', '#fff');
-          document.documentElement.style.setProperty('--bubble-me', '#e9e3ff');
-          document.documentElement.style.setProperty('--bubble-stranger', '#f1f3f6');
-          document.documentElement.style.setProperty('--bubble-system', '#ffe0b2');
-          document.documentElement.style.setProperty('--input-bg', '#f7f8fa');
-          document.documentElement.style.setProperty('--input-color', '#222');
-          document.documentElement.style.setProperty('--button-bg', '#f5f6fa');
-          document.documentElement.style.setProperty('--button-hover', '#e0e1e7');
-        }
-      }
+function appendMessage(text, type){
+    const div = document.createElement("div");
+    div.className = "message " + type;
+    const time = new Date().toLocaleTimeString();
+    div.textContent = `[${time}] ${text}`;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
 
-      // Initial UI
-      updateSidebarName();
-      updateSidebarAvatar();
-      updateMoodButtons();
-      setTheme(darkMode);
+socket.on("strangerFound", (name)=>{
+    appendMessage(`🟢 Connected to ${name}`, "system");
+    isConnected = true;
+    document.getElementById("messageInput").disabled = false;
+    document.querySelector("button[onclick='sendMessage()']").disabled = false;
+});
 
-      // Name edit
-      document.getElementById("editNameBtn").onclick = function() {
-        const newName = prompt("Enter your name:", userName);
-        if (newName && newName.trim()) {
-          userName = newName.trim();
-          localStorage.setItem("userName", userName);
-          updateSidebarName();
-          updateSidebarAvatar();
-        }
-      };
+socket.on("waiting", ()=>{
+    appendMessage("⏳ Waiting for a stranger...", "system");
+    isConnected = false;
+    document.getElementById("messageInput").disabled = true;
+    document.querySelector("button[onclick='sendMessage()']").disabled = true;
+});
 
-      // Theme toggle
-      document.getElementById("toggleThemeBtn").onclick = function() {
-        darkMode = !darkMode;
-        localStorage.setItem("darkMode", darkMode);
-        setTheme(darkMode);
-      };
+socket.on("partnerDisconnected", ()=>{
+    appendMessage("❌ Stranger disconnected", "system");
+    isConnected = false;
+    document.getElementById("messageInput").disabled = true;
+    document.querySelector("button[onclick='sendMessage()']").disabled = true;
+});
 
-      // Mood selector
-      document.querySelectorAll('.mood-btn').forEach(btn => {
-        btn.onclick = function() {
-          userMood = btn.dataset.mood;
-          localStorage.setItem("userMood", userMood);
-          updateMoodButtons();
-          socket.emit("set-mood", userMood);
-          appendMessage(`� Finding stranger with mood: ${userMood}`, "system");
-        };
-      });
+socket.on("message", (data)=>{
+    appendMessage(`${data.from}: ${data.text}`, "stranger");
+});
 
-      // Chat logic
-      function appendMessage(text, type) {
-        const msg = document.createElement("div");
-        msg.className = "message " + type;
-        msg.innerText = text;
-        messagesDiv.appendChild(msg);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      }
+socket.on("systemMessage", (msg)=>{
+    appendMessage(msg, "system");
+});
 
-      socket.on("chat start", (msg) => {
-        appendMessage(msg, "system");
-      });
-      socket.on("chat wait", (msg) => {
-        appendMessage(msg, "system");
-      });
-      socket.on("message", (msg) => {
-        appendMessage(msg, "stranger");
-      });
+socket.on("userList", (users)=>{
+    userList.innerHTML = "";
+    Object.values(users).forEach(u=>{
+        const li = document.createElement("li");
+        li.textContent = `${u.name} (${u.status})`;
+        userList.appendChild(li);
+    });
+});
 
-      function sendMessage() {
-        const input = document.getElementById("messageInput");
-        if (input.value.trim()) {
-          socket.emit("message", userName + ": " + input.value);
-          appendMessage("Me: " + input.value, "me");
-          input.value = "";
-        }
-      }
+function sendMessage(){
+    if(!isConnected){
+        appendMessage("❌ Can't send message. No stranger connected.", "system");
+        return;
+    }
+    const input = document.getElementById("messageInput");
+    if(input.value.trim()){
+        socket.emit("message", input.value);
+        appendMessage("Me: " + input.value, "me");
+        input.value = "";
+    }
+}
 
-      function findNewStranger() {
-        if (!userMood) {
-          appendMessage("❗ Please select a mood first.", "system");
-          return;
-        }
-        socket.emit("new-stranger", userMood);
-        appendMessage(`� Finding new stranger with mood: ${userMood}`, "system");
-      }
+function findNewStranger(){
+    socket.emit("findStranger");
+    appendMessage("🔄 Finding a new stranger...", "system");
+    document.getElementById("messageInput").disabled = true;
+    document.querySelector("button[onclick='sendMessage()']").disabled = true;
+}
+</script>
 
-      // Name setup modal logic
-      function setName() {
-        const input = document.getElementById("nameInput");
-        if (input.value.trim()) {
-          userName = input.value.trim();
-          localStorage.setItem("userName", userName);
-          updateSidebarName();
-          updateSidebarAvatar();
-          document.getElementById("nameSetup").style.display = "none";
-        }
-      }
-
-      // Show name setup only first time
-      if (!userName || userName === "Stranger") {
-        document.getElementById("nameSetup").style.display = "flex";
-      } else {
-        document.getElementById("nameSetup").style.display = "none";
-      }
-
-      // Expose functions globally
-      window.sendMessage = sendMessage;
-      window.findNewStranger = findNewStranger;
-      window.setName = setName;
-    };
-    document.body.appendChild(script);
-
-  // (Removed duplicate setName and userName logic)
-  </script>
 </body>
 </html>
