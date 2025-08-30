@@ -18,13 +18,34 @@ io.on("connection", (socket) => {
     allUsers[socket.id] = { name: socket.username, status: "online" };
     io.emit("userList", allUsers);
 
-    // Set name
-    socket.on("setName", (name) => {
-        socket.username = name;
+    // allUsers = { socketId: { name: string, status: 'waiting' | 'connected' } }
+
+socket.on("setName", (name) => {
+    // 1. Update socket object
+    socket.userName = name;
+
+    // 2. Update global allUsers list
+    if (!allUsers[socket.id]) {
+        allUsers[socket.id] = { name: name, status: "waiting" };
+    } else {
         allUsers[socket.id].name = name;
-        io.emit("userList", allUsers);
-        findStranger(socket);
-    });
+    }
+
+    // 3. Notify all clients about updated user list
+    io.emit("userList", allUsers);
+
+    // 4. If the user is already in a room, notify partner
+    if (socket.currentRoom) {
+        socket.to(socket.currentRoom).emit(
+            "systemMessage",
+            `💡 Your stranger changed their name to: ${name}`
+        );
+    }
+
+    // 5. Try to match user with a stranger
+    findStranger(socket);
+});
+
 
     // Find new stranger
     socket.on("findStranger", () => {

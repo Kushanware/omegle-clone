@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Stranger Chat</title>
 <style>
-body { font-family: Arial; margin:0; display:flex; height:100vh; }
+/* Base Styles */
+body { font-family: Arial, sans-serif; margin:0; display:flex; height:100vh; }
 .sidebar { width:280px; background:#f9f9f9; padding:12px; border-right:1px solid #eee; overflow-y:auto; }
 .chat-container { flex:1; display:flex; flex-direction:column; }
-.header { padding:12px; font-size:1.5rem; font-weight:bold; }
+.header { padding:12px; font-size:1.5rem; font-weight:bold; text-align:center; }
 .messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
 .message { padding:12px; border-radius:10px; max-width:70%; word-break:break-word; }
 .me { align-self:flex-end; background:#e0dfff; }
@@ -18,13 +19,38 @@ body { font-family: Arial; margin:0; display:flex; height:100vh; }
 input { flex:1; padding:10px; border-radius:8px; border:1px solid #ccc; }
 button { padding:10px 18px; border-radius:8px; border:none; background:#ddd; cursor:pointer; }
 button:disabled { background:#aaa; cursor:not-allowed; }
+
+/* Scrollbar small fix */
+.messages::-webkit-scrollbar { width:6px; }
+.messages::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.2); border-radius:3px; }
+
+/* Responsive Styles */
+@media (max-width: 900px) {
+    body { flex-direction: column; }
+    .sidebar { width:100%; height:auto; border-right:none; border-bottom:1px solid #eee; }
+    .chat-container { flex:1; }
+    .messages { padding:12px; }
+    .input-area { flex-direction: column; gap:6px; padding:8px; }
+    button { width:100%; }
+}
+@media (max-width: 600px) {
+    .header { font-size:1.2rem; padding:8px; }
+    input { padding:8px; font-size:0.9rem; }
+    button { padding:8px; font-size:0.9rem; }
+    .message { max-width:90%; padding:8px; font-size:0.9rem; }
+}
 </style>
 </head>
 <body>
 
 <div class="sidebar">
-<h3>👥 Online Users</h3>
-<ul id="userList"></ul>
+  <h3>👥 Online Users</h3>
+  <ul id="userList"></ul>
+  <div style="margin-top:20px;">
+    <label for="nameInput">Your Name:</label><br>
+    <input type="text" id="nameInputSidebar" placeholder="Enter your name" style="width: 90%; padding:6px; margin-top:4px;"/>
+    <button onclick="updateName()" style="margin-top:4px; padding:6px 12px;">Update</button>
+  </div>
 </div>
 
 <div class="chat-container">
@@ -44,6 +70,7 @@ const messagesDiv = document.getElementById("messages");
 const userList = document.getElementById("userList");
 let isConnected = false;
 
+// Name setup
 let userName = localStorage.getItem("userName");
 if (!userName) {
     userName = prompt("Enter your name:") || "Anonymous";
@@ -51,6 +78,7 @@ if (!userName) {
 }
 socket.emit("setName", userName);
 
+// Append messages
 function appendMessage(text, type){
     const div = document.createElement("div");
     div.className = "message " + type;
@@ -60,6 +88,7 @@ function appendMessage(text, type){
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
+// Socket listeners
 socket.on("strangerFound", (name)=>{
     appendMessage(`🟢 Connected to ${name}`, "system");
     isConnected = true;
@@ -98,6 +127,7 @@ socket.on("userList", (users)=>{
     });
 });
 
+// Send message
 function sendMessage(){
     if(!isConnected){
         appendMessage("❌ Can't send message. No stranger connected.", "system");
@@ -111,12 +141,30 @@ function sendMessage(){
     }
 }
 
+// Find new stranger
 function findNewStranger(){
     socket.emit("findStranger");
     appendMessage("🔄 Finding a new stranger...", "system");
     document.getElementById("messageInput").disabled = true;
     document.querySelector("button[onclick='sendMessage()']").disabled = true;
 }
+
+function updateName() {
+  const input = document.getElementById("nameInputSidebar");
+  const newName = input.value.trim();
+  if (newName) {
+    userName = newName;                       // Update local variable
+    localStorage.setItem("userName", userName); // Save locally
+    socket.emit("setName", userName);         // Send to server
+    appendMessage(`✅ Your name is now: ${userName}`, "system");
+  } else {
+    alert("Name cannot be empty!");
+  }
+}
+
+// Initialize the input with current name
+document.getElementById("nameInputSidebar").value = userName;
+
 </script>
 
 </body>
