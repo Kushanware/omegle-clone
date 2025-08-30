@@ -263,15 +263,24 @@
 
   <div class="sidebar">
     <div class="sidebar-header">
-      <span class="sidebar-user-avatar">👤</span>
-      Stranger Chat
+      <span class="sidebar-user-avatar" id="sidebarAvatar">👤</span>
+      <span id="sidebarName">Stranger</span>
+      <button id="editNameBtn" class="btn" style="margin-left:auto;padding:6px 10px;min-width:unset;" title="Edit Name">
+        <span class="btn-icon">✏️</span>
+      </button>
     </div>
     <div class="sidebar-list">
-      <div class="sidebar-user">
-        <span class="sidebar-user-avatar">🟢</span>
-        <span>Active Stranger</span>
+      <div style="margin: 18px 0 10px 0; font-weight: 500;">Mood</div>
+      <div id="moodSelector" style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn mood-btn" data-mood="talky">🗣️ Talky</button>
+        <button class="btn mood-btn" data-mood="sad">� Sad</button>
+        <button class="btn mood-btn" data-mood="horney">🔥 Horney</button>
+        <button class="btn mood-btn" data-mood="friendship">🤝 Friendship</button>
+        <button class="btn mood-btn" data-mood="gf">💖 GF</button>
+        <button class="btn mood-btn" data-mood="other">✨ Other</button>
       </div>
-      <!-- Add more sidebar items here if needed -->
+      <div style="margin: 24px 0 10px 0; font-weight: 500;">Theme</div>
+      <button class="btn" id="toggleThemeBtn">🌙 Toggle Light/Dark</button>
     </div>
   </div>
   <div class="chat-container">
@@ -308,8 +317,90 @@
     script.onload = () => {
       const socket = io("http://localhost:3001");
       const messagesDiv = document.getElementById("messages");
-      let userName = localStorage.getItem("userName");
+      let userName = localStorage.getItem("userName") || "Stranger";
+      let userMood = localStorage.getItem("userMood") || null;
+      let darkMode = localStorage.getItem("darkMode") === "true";
 
+      // UI helpers
+      function updateSidebarName() {
+        document.getElementById("sidebarName").innerText = userName;
+      }
+      function updateSidebarAvatar() {
+        document.getElementById("sidebarAvatar").innerText = userName ? userName[0].toUpperCase() : "👤";
+      }
+      function updateMoodButtons() {
+        document.querySelectorAll('.mood-btn').forEach(btn => {
+          if (btn.dataset.mood === userMood) {
+            btn.style.background = '#d1c4e9';
+            btn.style.fontWeight = 'bold';
+          } else {
+            btn.style.background = '';
+            btn.style.fontWeight = '';
+          }
+        });
+      }
+      function setTheme(dark) {
+        if (dark) {
+          document.documentElement.style.setProperty('--primary-bg', '#18192a');
+          document.documentElement.style.setProperty('--sidebar-bg', '#23243a');
+          document.documentElement.style.setProperty('--chat-bg', '#23243a');
+          document.documentElement.style.setProperty('--bubble-me', '#2d2b55');
+          document.documentElement.style.setProperty('--bubble-stranger', '#23243a');
+          document.documentElement.style.setProperty('--bubble-system', '#ff9800');
+          document.documentElement.style.setProperty('--input-bg', '#23243a');
+          document.documentElement.style.setProperty('--input-color', '#fff');
+          document.documentElement.style.setProperty('--button-bg', '#23243a');
+          document.documentElement.style.setProperty('--button-hover', '#18192a');
+        } else {
+          document.documentElement.style.setProperty('--primary-bg', '#f7f8fa');
+          document.documentElement.style.setProperty('--sidebar-bg', '#fff');
+          document.documentElement.style.setProperty('--chat-bg', '#fff');
+          document.documentElement.style.setProperty('--bubble-me', '#e9e3ff');
+          document.documentElement.style.setProperty('--bubble-stranger', '#f1f3f6');
+          document.documentElement.style.setProperty('--bubble-system', '#ffe0b2');
+          document.documentElement.style.setProperty('--input-bg', '#f7f8fa');
+          document.documentElement.style.setProperty('--input-color', '#222');
+          document.documentElement.style.setProperty('--button-bg', '#f5f6fa');
+          document.documentElement.style.setProperty('--button-hover', '#e0e1e7');
+        }
+      }
+
+      // Initial UI
+      updateSidebarName();
+      updateSidebarAvatar();
+      updateMoodButtons();
+      setTheme(darkMode);
+
+      // Name edit
+      document.getElementById("editNameBtn").onclick = function() {
+        const newName = prompt("Enter your name:", userName);
+        if (newName && newName.trim()) {
+          userName = newName.trim();
+          localStorage.setItem("userName", userName);
+          updateSidebarName();
+          updateSidebarAvatar();
+        }
+      };
+
+      // Theme toggle
+      document.getElementById("toggleThemeBtn").onclick = function() {
+        darkMode = !darkMode;
+        localStorage.setItem("darkMode", darkMode);
+        setTheme(darkMode);
+      };
+
+      // Mood selector
+      document.querySelectorAll('.mood-btn').forEach(btn => {
+        btn.onclick = function() {
+          userMood = btn.dataset.mood;
+          localStorage.setItem("userMood", userMood);
+          updateMoodButtons();
+          socket.emit("set-mood", userMood);
+          appendMessage(`� Finding stranger with mood: ${userMood}`, "system");
+        };
+      });
+
+      // Chat logic
       function appendMessage(text, type) {
         const msg = document.createElement("div");
         msg.className = "message " + type;
@@ -318,52 +409,51 @@
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
       }
 
-      socket.on("strangerFound", (name) => {
-        appendMessage(`🟢 Connected to: ${name}`, "system");
+      socket.on("chat start", (msg) => {
+        appendMessage(msg, "system");
       });
-
-      socket.on("waiting", () => {
-        appendMessage("🔄 Waiting for a stranger...", "system");
+      socket.on("chat wait", (msg) => {
+        appendMessage(msg, "system");
       });
-
-      socket.on("message", (data) => {
-        appendMessage(`${data.from}: ${data.text}`, "stranger");
-      });
-
-      socket.on("partnerDisconnected", () => {
-        appendMessage("❌ Stranger disconnected.", "system");
+      socket.on("message", (msg) => {
+        appendMessage(msg, "stranger");
       });
 
       function sendMessage() {
         const input = document.getElementById("messageInput");
         if (input.value.trim()) {
-          socket.emit("message", input.value);
+          socket.emit("message", userName + ": " + input.value);
           appendMessage("Me: " + input.value, "me");
           input.value = "";
         }
       }
 
       function findNewStranger() {
-        socket.emit("findStranger");
-        appendMessage("🔄 Finding new stranger...", "system");
+        if (!userMood) {
+          appendMessage("❗ Please select a mood first.", "system");
+          return;
+        }
+        socket.emit("new-stranger", userMood);
+        appendMessage(`� Finding new stranger with mood: ${userMood}`, "system");
       }
 
+      // Name setup modal logic
       function setName() {
         const input = document.getElementById("nameInput");
         if (input.value.trim()) {
           userName = input.value.trim();
           localStorage.setItem("userName", userName);
+          updateSidebarName();
+          updateSidebarAvatar();
           document.getElementById("nameSetup").style.display = "none";
-          socket.emit("setName", userName);
         }
       }
 
       // Show name setup only first time
-      if (!userName) {
+      if (!userName || userName === "Stranger") {
         document.getElementById("nameSetup").style.display = "flex";
       } else {
         document.getElementById("nameSetup").style.display = "none";
-        socket.emit("setName", userName);
       }
 
       // Expose functions globally
