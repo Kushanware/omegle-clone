@@ -1,69 +1,77 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path");
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-// Serve frontend (public folder)
+// Serve static files from the public directory
 app.use(express.static("public"));
+
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" },
+});
 
 let waitingUser = null;
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.log(`User connected: ${socket.id}`);
 
-  // Match users
-  if (waitingUser) {
-    const room = socket.id + "#" + waitingUser.id;
-    socket.join(room);
-    waitingUser.join(room);
+  // Default name
+  socket.data.name = "Anonymous";
 
-    io.to(room).emit("chat start", "✅ You are now connected to a stranger!");
-    waitingUser = null;
-  } else {
-    waitingUser = socket;
-    socket.emit("chat wait", "⏳ Waiting for a stranger...");
-  }
-
-  // Receive messages
-  socket.on("message", (msg) => {
-    const rooms = [...socket.rooms].filter(r => r !== socket.id);
-    rooms.forEach(room => io.to(room).emit("message", msg));
+  // Set display name
+  socket.on("setName", (name) => {
+    socket.data.name = name?.trim() || "Anonymous";
   });
 
-  // Find new stranger
-  socket.on("new-stranger", () => {
-    if (waitingUser === socket) waitingUser = null;
-
-    // Leave all current rooms
-    const rooms = [...socket.rooms].filter(r => r !== socket.id);
-    rooms.forEach(room => socket.leave(room));
-
-    // Match with a waiting user or wait
-    if (waitingUser) {
-      const room = socket.id + "#" + waitingUser.id;
-      socket.join(room);
-      waitingUser.join(room);
-      io.to(room).emit("chat start", "✅ You are now connected to a stranger!");
+  // Match with stranger
+  socket.on("findStranger", () => {
+    if (waitingUser && waitingUser.id !== socket.id) {
+      const partner = waitingUser;
       waitingUser = null;
+
+      // Save partner references
+      socket.partner = partner;
+      partner.partner = socket;
+
+      // Notify both
+      socket.emit("strangerFound", partner.data.name);
+      partner.emit("strangerFound", socket.data.name);
     } else {
       waitingUser = socket;
-      socket.emit("chat wait", "⏳ Waiting for a stranger...");
+      socket.emit("waiting");
     }
   });
 
-  // Disconnect
+  // Relay message to partner
+  socket.on("message", (msg) => {
+    if (socket.partner) {
+      socket.partner.emit("message", {
+        text: msg,
+        from: socket.data.name,
+      });
+    }
+  });
+
+  // Handle disconnection
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    if (waitingUser === socket) waitingUser = null;
-    socket.broadcast.emit("message", "❌ Stranger disconnected.");
+    console.log(`User disconnected: ${socket.id}`);
+
+    // Notify partner if exists
+    if (socket.partner) {
+      socket.partner.emit("partnerDisconnected");
+      socket.partner.partner = null;
+    }
+
+    // Clear waiting user if leaving
+    if (waitingUser && waitingUser.id === socket.id) {
+      waitingUser = null;
+    }
   });
 });
 
 // Start server
-server.listen(3000, () => {
-  console.log("🚀 Server running on http://localhost:3000");
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
